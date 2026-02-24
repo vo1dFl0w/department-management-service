@@ -28,19 +28,6 @@
 
 ---
 
-## Быстрый обзор структуры (файлы/директории важные для запуска)
-
-- `cmd/market-parser/main.go` — точка входа, инициализация конфигурации и сервисов.
-- `configs/config.yaml` — основной YAML-конфиг (base_url, selectors и т.д.).
-- `.env.example` — пример переменных окружения (WebSocket URL браузера, прокси и т.п.).
-- `internal/adapters/browser/chromium` — инициализация Chromium/rod, прокси, DTO и утилиты для работы с элементами страницы.
-- `internal/adapters/parsers/kuper.go` — пример реализации парсера для магазина.
-- `internal/usecase/parser_service.go` — сервисная логика: валидация параметров и вызов репозитория-парсера.
-- `internal/transport/http` — HTTP-обёртка, handlers и OpenAPI-строка.
-- `Dockerfile`, `docker-compose.yaml`, `Makefile` — способы запуска.
-
----
-
 ## Структура проекта
 
 ```
