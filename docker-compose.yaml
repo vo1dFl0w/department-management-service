@@ -1,0 +1,53 @@
+services:
+  api:
+    build: ./
+    container_name: api
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    depends_on:
+      - migrations
+      - database
+  database:
+    container_name: database
+    image: postgres:14-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgres/data
+    restart: always
+  migrations:
+    image: golang:1.24.3-alpine
+    volumes:
+      - ./migrations:/migrations
+    depends_on:
+      - database
+    environment:
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_SSL=${POSTGRES_SSL}
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["apk add --no-cache postgresql-client git; go install github.com/pressly/goose/v3/cmd/goose@v3.11.0; /go/bin/goose -dir /migrations postgres \"user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} host=${POSTGRES_HOST} port=${POSTGRES_PORT} dbname=${POSTGRES_DB} sslmode=${POSTGRES_SSL}\" up"]
+    restart: "no"
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: swagger-ui
+    ports:
+      - "8081:8080"
+    environment:
+      SWAGGER_JSON: /openapi/openapi.yaml
+    volumes:
+      - ./api/v1/openapi.yaml:/openapi/openapi.yaml:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+volumes:
+  db_data:

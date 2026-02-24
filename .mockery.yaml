@@ -1,0 +1,29 @@
+all: false
+formatter: goimports
+log-level: info
+template: testify
+packages:
+  github.com/vo1dFl0w/department-management-service/internal/repository:
+    interfaces:
+      Postgres:
+        config:
+          dir: "internal/test/mocks"
+          pkgname: "mocks"
+          structname: "PostgresMock"
+          filename: "postgres_mock.go"
+  github.com/vo1dFl0w/department-management-service/internal/usecase:
+    interfaces:
+      DepartmentManagerService:
+        config:
+          dir: "internal/test/mocks"
+          pkgname: "mocks"
+          structname: "DepartmentManagerServiceMock"
+          filename: "department_manager_service_mock.go"
+  github.com/vo1dFl0w/department-management-service/pkg/logger:
+    interfaces:
+      Logger:
+        config:
+          dir: "internal/test/mocks"
+          pkgname: "mocks"
+          structname: "LoggerMock"
+          filename: "logger_mock.go"

@@ -1,0 +1,413 @@
+openapi: 3.0.0
+info:
+  title: "Specification for department management service"
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+
+package: api
+generate:
+  std-http-server: true
+  models: true
+output: gen.go
+
+paths:
+  /departments/:
+    post:
+      summary: "Create a department"
+      description: "Create a department with a name and optional parent (parent_id nullable for root)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDepartmentRequest'
+      responses:
+        '201':
+          description: "Created department"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '400':
+          description: "Bad Request"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: "Parend department not found by id"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: "Conflict (department already exists)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: "Gateway timeout"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /departments/{id}/employees/:
+    post:
+      summary: "Create an employee in a department"
+      description: "Creates a new employee and assigns them to department {id}."
+      parameters:
+        - name: id
+          in: path
+          description: "Department id to assign the employee to"
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEmployeeRequest'
+      responses:
+        '201':
+          description: "Created employee"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '400':
+          description: "Bad Request"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: "Department not found"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: "Gateway timeout"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /departments/{id}:
+    get:
+      summary: "Get department details (with employees and children subtree)"
+      description: "Return department details. `depth` controls recursion depth for children (default 1, max 5). If include_employees=true employees are included (server sorts by created_at or full_name)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: depth
+          in: query
+          description: "Depth of nested child departments to include (default: 1, max: 5)"
+          schema:
+            type: integer
+            default: 1
+            minimum: 0
+            maximum: 5
+        - name: include_employees
+          in: query
+          description: "Whether to include employees in the response (default: true)"
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: "Department details with optional employees and nested children"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentWithChildrenAndEmployees'
+        '400':
+          description: "Bad Request (invalid parameters)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: "Department not found"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: "Gateway timeout"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      summary: "Update department (rename and/or change parent)"
+      description: "Partial update: provide one or both fields. `name` = new name of the current department (rename). `parent_id` = target parent id (nullable to move to root). Server must prevent cycles (409)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDepartmentRequest'
+      responses:
+        '200':
+          description: "Updated department"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+        '400':
+          description: "Bad Request"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: "Department or parent not found"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: "Conflict (e.g. cycle detected when changing parent)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: "Gateway timeout"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: "Delete department"
+      description: >-
+        Delete a department. Two modes:
+        - cascade — delete department, all its employees and child departments
+        - reassign — delete department, reassign employees to `reassign_to_department_id` (this query param is required when mode=reassign)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: mode
+          in: query
+          description: "Delete mode (default: cascade)"
+          required: true
+          schema:
+            type: string
+            enum: [cascade, reassign]
+        - name: reassign_to_department_id
+          in: query
+          description: "Target department id to reassign employees when mode=reassign. REQUIRED when mode=reassign."
+          required: false
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: "No Content — department deleted successfully"
+        '400':
+          description: "Bad Request (e.g. missing reassign_to_department_id when mode=reassign)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: "Department not found or reassign target not found"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: "Conflict (business rule prevents deletion)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: "Gateway timeout"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CreateDepartmentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Backend department"
+        parent_id:
+          type: integer
+          nullable: true
+          description: "Parent department id (nullable for root)"
+          example: 1
+      required:
+        - name
+
+    CreateEmployeeRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          example: "John Doe"
+        position:
+          type: string
+          example: "Backend developer"
+        hired_at:
+          type: string
+          format: date
+          nullable: true
+          description: "Hire date (YYYY-MM-DD), optional"
+          example: "2026-02-21"
+      required:
+        - full_name
+        - position
+
+    UpdateDepartmentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "New name for the current department (rename). Not a reference to another department."
+          example: "New Sales"
+        parent_id:
+          type: integer
+          nullable: true
+          description: "New parent department id (nullable to move to root). Server must validate to avoid cycles."
+          example: 2
+      additionalProperties: false
+
+    Department:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Administration"
+        parent_id:
+          type: integer
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-02-21T12:34:56Z"
+      required:
+        - id
+        - name
+        - created_at
+
+    Employee:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 10
+        department_id:
+          type: integer
+          example: 2
+        full_name:
+          type: string
+          example: "John Doe"
+        position:
+          type: string
+          example: "Backend developer"
+        hired_at:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-02-21"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-02-21T12:34:56Z"
+      required:
+        - id
+        - department_id
+        - full_name
+        - position
+        - created_at
+
+    DepartmentWithChildrenAndEmployees:
+      type: object
+      properties:
+        department:
+          $ref: '#/components/schemas/Department'
+        employees:
+          type: array
+          description: "List of employees in this department. Returned only if include_employees=true. Server must sort by created_at or full_name."
+          items:
+            $ref: '#/components/schemas/Employee'
+        children:
+          type: array
+          description: "Recursive list of child departments up to requested depth."
+          items:
+            $ref: '#/components/schemas/DepartmentWithChildrenAndEmployees'
+      required:
+        - department
+        - employees
+        - children
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Validation failed: name is required"
+      required:
+        - status
+        - message

@@ -1,0 +1,13 @@
+env: local
+http_addr: localhost:8080
+request_timeout: 30s
+logger_time_format: "02-01-2006 15:04:05"
+shutdown_timeout: 5s
+
+db:
+  host:
+  port:
+  username:
+  password:
+  dbname:
+  sslmode:
